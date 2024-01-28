@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) !void {
         .@"import-module" = try Phantom.Sdk.ModuleImport.init(&.{}, b.pathFromRoot("src"), b.allocator),
     });
 
-    const module = b.addModule("phantom.template.module", .{
+    const module = b.addModule("phantom.platform.web", .{
         .root_source_file = .{ .path = b.pathFromRoot("src/phantom.zig") },
         .imports = &.{
             .{
@@ -41,7 +41,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     exe_example.root_module.addImport("phantom", phantom.module("phantom"));
-    exe_example.root_module.addImport("phantom.template.module", module);
+    exe_example.root_module.addImport("phantom.platform.web", module);
     exe_example.root_module.addImport("options", exe_options.createModule());
     b.installArtifact(exe_example);
 
