@@ -1,7 +1,15 @@
 const std = @import("std");
 const Phantom = @import("phantom");
 
-pub const phantomModule = Phantom.Sdk.PhantomModule{};
+pub const phantomModule = Phantom.Sdk.PhantomModule{
+    .provides = .{
+        .platforms = .{"web"},
+    },
+};
+
+pub const phantomPlatform = struct {
+    pub const web = @import("src/phantom/platform/backends/web/sdk.zig");
+};
 
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
@@ -9,7 +17,6 @@ pub fn build(b: *std.Build) !void {
     const no_importer = b.option(bool, "no-importer", "disables the import system (not recommended)") orelse false;
     const no_docs = b.option(bool, "no-docs", "skip installing documentation") orelse false;
     const no_tests = b.option(bool, "no-tests", "skip generating tests") orelse false;
-    const scene_backend = b.option(Phantom.SceneBackendType, "scene-backend", "The scene backend to use for the example") orelse .headless;
 
     const phantom = b.dependency("phantom", .{
         .target = target,
@@ -19,7 +26,7 @@ pub fn build(b: *std.Build) !void {
         .@"import-module" = try Phantom.Sdk.ModuleImport.init(&.{}, b.pathFromRoot("src"), b.allocator),
     });
 
-    const module = b.addModule("phantom.platform.web", .{
+    _ = b.addModule("phantom.platform.web", .{
         .root_source_file = .{ .path = b.pathFromRoot("src/phantom.zig") },
         .imports = &.{
             .{
@@ -29,21 +36,28 @@ pub fn build(b: *std.Build) !void {
         },
     });
 
-    const exe_options = b.addOptions();
-    exe_options.addOption(Phantom.SceneBackendType, "scene_backend", scene_backend);
+    const sdk = try phantomPlatform.web.create(b, phantom.module("phantom"));
+    defer sdk.deinit();
 
-    const exe_example = b.addExecutable(.{
+    const pkg_example = sdk.addPackage(.{
+        .id = "dev.phantomui.example",
         .name = "example",
-        .root_source_file = .{
-            .path = b.pathFromRoot("src/example.zig"),
+        .root_module = .{
+            .root_source_file = .{
+                .path = b.pathFromRoot("src/example.zig"),
+            },
+            .target = target,
+            .optimize = optimize,
         },
-        .target = target,
-        .optimize = optimize,
+        .kind = .application,
+        .version = .{
+            .major = 0,
+            .minor = 1,
+            .patch = 0,
+        },
     });
-    exe_example.root_module.addImport("phantom", phantom.module("phantom"));
-    exe_example.root_module.addImport("phantom.platform.web", module);
-    exe_example.root_module.addImport("options", exe_options.createModule());
-    b.installArtifact(exe_example);
+
+    sdk.installPackage(pkg_example);
 
     if (!no_tests) {
         const step_test = b.step("test", "Run all unit tests");
