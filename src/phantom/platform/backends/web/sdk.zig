@@ -6,7 +6,19 @@ const Package = @import("sdk/step/pkg.zig");
 const InstallPackage = @import("sdk/step/install-pkg.zig");
 const Self = @This();
 
+pub const RenderMode = enum {
+    ServerSide,
+    ClientSide,
+};
+
+pub const GenerationMode = enum {
+    Static,
+    Served,
+};
+
 base: Sdk,
+renderMode: RenderMode,
+genMode: GenerationMode,
 
 pub fn create(b: *std.Build, phantomModule: *std.Build.Module) !*Sdk {
     const self = try b.allocator.create(Self);
@@ -23,6 +35,8 @@ pub fn create(b: *std.Build, phantomModule: *std.Build.Module) !*Sdk {
             .owner = b,
             .phantom = phantomModule,
         },
+        .renderMode = b.option(RenderMode, "render-mode", "Sets whether or no the rendering should be done server side or client side") orelse .ClientSide,
+        .genMode = b.option(GenerationMode, "gen-mode", "Sets whether or not the site should be statically generated or should be served") orelse .Static,
     };
     return &self.base;
 }
